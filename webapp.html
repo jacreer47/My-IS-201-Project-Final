@@ -1,0 +1,297 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>BYU v.s. Utah: Tic Tac Toe</title>
+  <style>
+    body {
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      background: #ffffff;
+      color: #333;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: flex-start;
+      padding-top: 40px;
+      min-height: 100vh;
+      margin: 0;
+    }
+
+    h1 {
+      font-size: 2.5rem;
+      margin-bottom: 10px;
+      color: #222;
+    }
+
+    #scoreboard {
+      display: flex;
+      gap: 40px;
+      margin-bottom: 20px;
+      font-size: 1.2rem;
+    }
+
+    #board {
+      display: grid;
+      grid-template-columns: repeat(3, 120px);
+      gap: 12px;
+      margin-bottom: 20px;
+    }
+
+    .cell {
+      width: 120px;
+      height: 120px;
+      background: #fff;
+      border: 2px solid #ccc;
+      font-size: 3rem;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      box-shadow: 0 2px 6px rgba(0, 0, 0, 0.08);
+      transition: background 0.2s ease, box-shadow 0.2s ease;
+      font-weight: bold;
+    }
+
+    .cell:hover:not(.taken) {
+      background: #f0f0f0;
+      box-shadow: 0 3px 8px rgba(0, 0, 0, 0.12);
+    }
+
+    .cell.taken {
+      cursor: default;
+    }
+
+    .byu {
+      color: #0056b3; /* BYU Blue */
+      text-shadow: 1px 1px 2px #ccc;
+    }
+
+    .utah {
+      color: #cc0000; /* Utah Red */
+      text-shadow: 1px 1px 2px #ccc;
+    }
+
+    #status {
+      font-size: 1.3rem;
+      margin-bottom: 15px;
+      color: #444;
+    }
+
+    button {
+      padding: 10px 24px;
+      font-size: 1rem;
+      background-color: #007bff;
+      color: white;
+      border: none;
+      border-radius: 6px;
+      cursor: pointer;
+      transition: background-color 0.3s ease, transform 0.2s ease;
+    }
+
+    button:hover {
+      background-color: #0056b3;
+      transform: scale(1.05);
+    }
+
+    .confetti {
+      position: fixed;
+      width: 10px;
+      height: 10px;
+      background-color: #007bff;
+      animation: fall 3s linear infinite;
+      z-index: 1000;
+    }
+
+    @keyframes fall {
+      0% { transform: translateY(-100px) rotate(0deg); opacity: 1; }
+      100% { transform: translateY(100vh) rotate(360deg); opacity: 0; }
+    }
+
+    @media (max-width: 500px) {
+      #board {
+        grid-template-columns: repeat(3, 80px);
+        gap: 8px;
+      }
+
+      .cell {
+        width: 80px;
+        height: 80px;
+        font-size: 2rem;
+      }
+    }
+  </style>
+</head>
+<body>
+  <h1><span style="color:#0056b3">BYU</span> v.s. <span style="color:#cc0000">Utah</span>: Tic Tac Toe</h1>
+  <div id="scoreboard">
+    <div>BYU (Y): <span id="byu-score">0</span></div>
+    <div>Utah (U): <span id="utah-score">0</span></div>
+    <div>Draws: <span id="draws">0</span></div>
+  </div>
+  <div id="board"></div>
+  <div id="status">Your move, Cougar!</div>
+  <button onclick="resetGame()">Restart Game</button>
+
+  <script>
+    const boardElement = document.getElementById('board');
+    const statusElement = document.getElementById('status');
+    const byuScoreElement = document.getElementById('byu-score');
+    const utahScoreElement = document.getElementById('utah-score');
+    const drawsElement = document.getElementById('draws');
+
+    let board = Array(9).fill('');
+    let gameOver = false;
+    let scores = { byu: 0, utah: 0, draw: 0 };
+
+    const player = 'Y';
+    const computer = 'U';
+
+    const winningCombos = [
+      [0,1,2], [3,4,5], [6,7,8],
+      [0,3,6], [1,4,7], [2,5,8],
+      [0,4,8], [2,4,6]
+    ];
+
+    function renderBoard() {
+      boardElement.innerHTML = '';
+      board.forEach((cell, i) => {
+        const cellElement = document.createElement('div');
+        cellElement.classList.add('cell');
+        if (cell === player) cellElement.classList.add('byu');
+        if (cell === computer) cellElement.classList.add('utah');
+        if (cell !== '') {
+          cellElement.classList.add('taken');
+        }
+        cellElement.textContent = cell;
+        cellElement.addEventListener('click', () => handlePlayerMove(i));
+        boardElement.appendChild(cellElement);
+      });
+    }
+
+    function handlePlayerMove(index) {
+      if (board[index] !== '' || gameOver) return;
+      board[index] = player;
+      renderBoard();
+      if (checkGameOver()) return;
+      setTimeout(handleComputerMove, 300);
+    }
+
+    function handleComputerMove() {
+      const move = decideComputerMove(board.slice());
+      board[move] = computer;
+      renderBoard();
+      checkGameOver();
+    }
+
+    function decideComputerMove(boardState) {
+      const chanceToBlunder = Math.random();
+      const possibleMoves = boardState.map((val, i) => val === '' ? i : null).filter(i => i !== null);
+      if (chanceToBlunder < 0.2) {
+        return possibleMoves[Math.floor(Math.random() * possibleMoves.length)];
+      }
+      let bestScore = -Infinity;
+      let bestMove = null;
+      for (let i of possibleMoves) {
+        boardState[i] = computer;
+        let score = minimax(boardState, 0, false);
+        boardState[i] = '';
+        if (score > bestScore) {
+          bestScore = score;
+          bestMove = i;
+        }
+      }
+      return bestMove;
+    }
+
+    function minimax(boardState, depth, isMaximizing) {
+      const result = evaluateBoard(boardState);
+      if (result !== null) return result;
+      const possibleMoves = boardState.map((v, i) => v === '' ? i : null).filter(i => i !== null);
+      if (isMaximizing) {
+        let maxEval = -Infinity;
+        for (let i of possibleMoves) {
+          boardState[i] = computer;
+          let eval = minimax(boardState, depth + 1, false);
+          boardState[i] = '';
+          maxEval = Math.max(maxEval, eval);
+        }
+        return maxEval;
+      } else {
+        let minEval = Infinity;
+        for (let i of possibleMoves) {
+          boardState[i] = player;
+          let eval = minimax(boardState, depth + 1, true);
+          boardState[i] = '';
+          minEval = Math.min(minEval, eval);
+        }
+        return minEval;
+      }
+    }
+
+    function evaluateBoard(b) {
+      for (let [a, b1, c] of winningCombos) {
+        if (b[a] && b[a] === b[b1] && b[a] === b[c]) {
+          return b[a] === computer ? 10 : -10;
+        }
+      }
+      if (!b.includes('')) return 0;
+      return null;
+    }
+
+    function triggerConfetti() {
+      for (let i = 0; i < 100; i++) {
+        const confetti = document.createElement('div');
+        confetti.classList.add('confetti');
+        confetti.style.left = Math.random() * 100 + 'vw';
+        confetti.style.backgroundColor = Math.random() > 0.5 ? '#002654' : '#cc0000';
+        confetti.style.animationDuration = (2 + Math.random() * 2) + 's';
+        document.body.appendChild(confetti);
+        setTimeout(() => confetti.remove(), 3000);
+      }
+    }
+
+    function checkGameOver() {
+      const score = evaluateBoard(board);
+      if (score === 10) {
+        statusElement.textContent = "Utah wins this round!";
+        scores.utah++;
+        gameOver = true;
+        updateScores();
+        triggerConfetti();
+        return true;
+      } else if (score === -10) {
+        statusElement.textContent = "BYU wins this round!";
+        scores.byu++;
+        gameOver = true;
+        updateScores();
+        triggerConfetti();
+        return true;
+      } else if (!board.includes('')) {
+        statusElement.textContent = "It's a tie!";
+        scores.draw++;
+        gameOver = true;
+        updateScores();
+        return true;
+      }
+      return false;
+    }
+
+    function updateScores() {
+      byuScoreElement.textContent = scores.byu;
+      utahScoreElement.textContent = scores.utah;
+      drawsElement.textContent = scores.draw;
+    }
+
+    function resetGame() {
+      board = Array(9).fill('');
+      gameOver = false;
+      statusElement.textContent = "Your move, Cougar!";
+      renderBoard();
+    }
+
+    renderBoard();
+  </script>
+  <br><br>
+  <a href="index.html">Back to Scratch Site</a>
+</body>
+</html>
